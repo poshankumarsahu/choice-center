@@ -8,6 +8,9 @@ import {
   FaUser,
   FaMobile,
 } from "react-icons/fa";
+import { submitForm } from "../services/api";
+import { storage } from "../config/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const FormSubmit = ({ serviceName = "Document" }) => {
   const [mainFiles, setMainFiles] = useState([]);
@@ -21,21 +24,13 @@ const FormSubmit = ({ serviceName = "Document" }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
     if (name === "mobile") {
-      // Only allow numbers and limit to 10 digits
       const numbersOnly = value.replace(/[^\d]/g, "");
       if (numbersOnly.length <= 10) {
-        setFormData((prev) => ({
-          ...prev,
-          [name]: numbersOnly,
-        }));
+        setFormData((prev) => ({ ...prev, [name]: numbersOnly }));
       }
     } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
@@ -65,47 +60,76 @@ const FormSubmit = ({ serviceName = "Document" }) => {
     setOtherFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
   };
 
+  const uploadFileToFirebase = async (file, fileType) => {
+    try {
+      const timestamp = Date.now();
+      const storageRef = ref(
+        storage,
+        `submissions/${formData.mobile}/${fileType}/${timestamp}_${file.name}`
+      );
+      const uploadResult = await uploadBytes(storageRef, file);
+      return await getDownloadURL(uploadResult.ref);
+    } catch (error) {
+      console.error("Upload error:", error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Check if at least one file is selected
-    if (mainFiles.length === 0 && otherFiles.length === 0) {
-      alert("कृपया कम से कम एक दस्तावेज़ अपलोड करें");
-      return;
-    }
-
     setIsSubmitting(true);
 
-    // Validate name and mobile
-    if (!formData.name.trim()) {
-      alert("कृपया अपना नाम दर्ज करें");
-      return;
-    }
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("mobile", formData.mobile);
+      formDataToSend.append("serviceName", serviceName);
 
-    if (!formData.mobile.trim() || !/^\d{10}$/.test(formData.mobile)) {
-      alert("कृपया सही मोबाइल नंबर दर्ज करें");
-      return;
-    }
+      // Upload main files to Firebase
+      const mainFileUrls = await Promise.all(
+        mainFiles.map((file) => uploadFileToFirebase(file, "main"))
+      ).catch((error) => {
+        console.error("Main files upload error:", error);
+        throw new Error("Failed to upload main files");
+      });
 
-    // Check if at least one file is selected
-    if (mainFiles.length === 0 && otherFiles.length === 0) {
-      alert("कृपया कम से कम एक दस्तावेज़ अपलोड करें");
-      return;
-    }
+      // Upload other files to Firebase
+      const otherFileUrls = await Promise.all(
+        otherFiles.map((file) => uploadFileToFirebase(file, "other"))
+      ).catch((error) => {
+        console.error("Other files upload error:", error);
+        throw new Error("Failed to upload other files");
+      });
 
-    setIsSubmitting(true);
+      formDataToSend.append("mainFileUrls", JSON.stringify(mainFileUrls));
+      formDataToSend.append("otherFileUrls", JSON.stringify(otherFileUrls));
 
-    setTimeout(() => {
+      const response = await submitForm(formDataToSend);
+
+      // Check if the response exists and has the required properties
+      if (response && (response.success || response.id)) {
+        setIsSubmitted(true);
+        // Reset form after successful submission
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setMainFiles([]);
+          setOtherFiles([]);
+          setFormData({ name: "", mobile: "" });
+        }, 3000);
+      } else {
+        throw new Error("Form submission response was invalid");
+      }
+    } catch (error) {
+      console.error("Submission error:", error);
+      alert(
+        `Error: ${
+          error.message ||
+          "फॉर्म सबमिट करने में समस्या आई है। कृपया पुनः प्रयास करें।"
+        }`
+      );
+    } finally {
       setIsSubmitting(false);
-      setIsSubmitted(true);
-
-      setTimeout(() => {
-        setIsSubmitted(false);
-        setMainFiles([]);
-        setOtherFiles([]);
-        setFormData({ name: "", mobile: "" });
-      }, 3000);
-    }, 2000);
+    }
   };
 
   return (
@@ -118,9 +142,7 @@ const FormSubmit = ({ serviceName = "Document" }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="p-6">
-        {/* Personal Information Section */}
         <div className="grid md:grid-cols-2 gap-6 mb-6">
-          {/* Name Field */}
           <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center mb-4">
               <FaUser className="text-2xl text-blue-600 mr-3" />
@@ -139,7 +161,6 @@ const FormSubmit = ({ serviceName = "Document" }) => {
             />
           </div>
 
-          {/* Mobile Field */}
           <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center mb-4">
               <FaMobile className="text-2xl text-green-600 mr-3" />
@@ -162,9 +183,7 @@ const FormSubmit = ({ serviceName = "Document" }) => {
           </div>
         </div>
 
-        {/* File Upload Sections */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Main Document Upload Section */}
           <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center mb-4">
               <FaFileUpload className="text-2xl text-blue-600 mr-3" />
@@ -211,7 +230,6 @@ const FormSubmit = ({ serviceName = "Document" }) => {
             </div>
           </div>
 
-          {/* Additional Documents Upload Section */}
           <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center mb-4">
               <FaFileUpload className="text-2xl text-green-600 mr-3" />
@@ -259,7 +277,6 @@ const FormSubmit = ({ serviceName = "Document" }) => {
           </div>
         </div>
 
-        {/* Submit Button and Contact Options */}
         <div className="mt-6 space-y-6">
           <div className="flex justify-end">
             <button
@@ -269,11 +286,12 @@ const FormSubmit = ({ serviceName = "Document" }) => {
                 (mainFiles.length === 0 && otherFiles.length === 0)
               }
               className={`px-6 py-2 text-sm rounded-lg font-medium text-white transition-colors
-    ${
-      isSubmitting || (mainFiles.length === 0 && otherFiles.length === 0)
-        ? "bg-gray-400 cursor-not-allowed"
-        : "bg-rose-500 hover:bg-rose-600"
-    }`}
+                ${
+                  isSubmitting ||
+                  (mainFiles.length === 0 && otherFiles.length === 0)
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-rose-500 hover:bg-rose-600"
+                }`}
             >
               {isSubmitting ? "Submitting..." : "Upload Files"}
             </button>
@@ -303,7 +321,6 @@ const FormSubmit = ({ serviceName = "Document" }) => {
         </div>
       </form>
 
-      {/* Success Message */}
       {isSubmitted && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-xl text-center">
@@ -318,7 +335,6 @@ const FormSubmit = ({ serviceName = "Document" }) => {
         </div>
       )}
 
-      {/* Footer Note */}
       <div className="bg-gray-50 px-6 py-4 text-center border-t">
         <p className="text-gray-600">
           कृपया सुनिश्चित करें कि सभी दस्तावेज़ स्पष्ट और पठनीय हों।

@@ -9,14 +9,6 @@ const Slider = () => {
       url: "/images/img1.jpg",
       alt: "First slide",
     },
-    {
-      url: "/images/img2.jpg",
-      alt: "Second slide",
-    },
-    {
-      url: "/images/img3.jpg",
-      alt: "Third slide",
-    },
   ];
 
   useEffect(() => {
