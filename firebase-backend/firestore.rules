@@ -2,12 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /submissions/{submissionId} {
-      allow read, write: if true;  // For development only
-      // For production, use more restrictive rules:
-      // allow read: if true;
-      // allow create: if request.resource.data.name is string 
-      //              && request.resource.data.mobile is string;
-      // allow update, delete: if false;
+      // Allow read/write access when authenticated or for development
+      allow read, write: if true;
+      
+      // For production, use these more secure rules:
+      // allow read: if request.auth != null;
+      // allow write: if request.auth != null
+      //             && request.resource.data.name is string
+      //             && request.resource.data.mobile is string;
     }
   }
 }
