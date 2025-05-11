@@ -9,8 +9,9 @@ import {
   FaMobile,
 } from "react-icons/fa";
 import { submitForm } from "../services/api";
-import { storage } from "../config/firebase";
+import { storage, db } from "../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, setDoc } from "firebase/firestore";
 
 const FormSubmit = ({ serviceName = "Document" }) => {
   const [mainFiles, setMainFiles] = useState([]);
@@ -64,18 +65,38 @@ const FormSubmit = ({ serviceName = "Document" }) => {
     try {
       if (!file) return null;
 
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error(`File ${file.name} is too large. Maximum size is 5MB`);
+      }
+
+      // Validate file type
+      const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error(
+          `File ${file.name} type not supported. Please upload PDF or images only`
+        );
+      }
+
       const timestamp = Date.now();
+      const fileName = `${timestamp}_${file.name}`;
       const storageRef = ref(
         storage,
-        `submissions/${formData.mobile}/${fileType}/${timestamp}_${file.name}`
+        `submissions/${formData.mobile}/${fileType}/${fileName}`
       );
 
       const uploadResult = await uploadBytes(storageRef, file);
       const downloadUrl = await getDownloadURL(uploadResult.ref);
-      return downloadUrl;
+
+      return {
+        url: downloadUrl,
+        fileName: file.name,
+        fileType: file.type,
+        uploadedAt: timestamp,
+      };
     } catch (error) {
       console.error("Upload error:", error);
-      throw new Error(`Failed to upload ${file.name}`);
+      throw new Error(`Failed to upload ${file.name}: ${error.message}`);
     }
   };
 
@@ -88,6 +109,10 @@ const FormSubmit = ({ serviceName = "Document" }) => {
         throw new Error("Please enter both name and mobile number");
       }
 
+      if (mainFiles.length === 0 && otherFiles.length === 0) {
+        throw new Error("Please upload at least one file");
+      }
+
       // Upload files first
       const mainFileUrls = await Promise.all(
         mainFiles.map((file) => uploadFileToFirebase(file, "main"))
@@ -97,33 +122,33 @@ const FormSubmit = ({ serviceName = "Document" }) => {
         otherFiles.map((file) => uploadFileToFirebase(file, "other"))
       );
 
-      // Prepare data for Firestore
-      const data = {
+      // Create Firestore document
+      const timestamp = Date.now();
+      const submissionId = `${formData.mobile}_${timestamp}`;
+
+      const submissionData = {
         name: formData.name,
         mobile: formData.mobile,
         serviceName: serviceName,
-        mainFileUrls: JSON.stringify(
-          mainFileUrls.filter((url) => url !== null)
-        ),
-        otherFileUrls: JSON.stringify(
-          otherFileUrls.filter((url) => url !== null)
-        ),
+        mainFiles: mainFileUrls.filter(Boolean),
+        otherFiles: otherFileUrls.filter(Boolean),
+        createdAt: timestamp,
+        status: "pending",
+        updatedAt: timestamp,
       };
 
-      const response = await submitForm(data);
+      // Save to Firestore
+      await setDoc(doc(db, "submissions", submissionId), submissionData);
 
-      if (response.success) {
-        setIsSubmitted(true);
-        setMainFiles([]);
-        setOtherFiles([]);
-        setFormData({ name: "", mobile: "" });
+      // Show success message
+      setIsSubmitted(true);
+      setMainFiles([]);
+      setOtherFiles([]);
+      setFormData({ name: "", mobile: "" });
 
-        setTimeout(() => {
-          setIsSubmitted(false);
-        }, 3000);
-      } else {
-        throw new Error(response.message || "Submission failed");
-      }
+      setTimeout(() => {
+        setIsSubmitted(false);
+      }, 3000);
     } catch (error) {
       console.error("Submission error:", error);
       alert(error.message || "Error submitting form. Please try again.");
