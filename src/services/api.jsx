@@ -3,21 +3,26 @@ const API_BASE_URL =
 
 export const submitForm = async (formData) => {
   try {
-    const response = await fetch(
-      "https://us-central1-bk-studio-2f263.cloudfunctions.net/api/submit-form",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-        mode: "cors",
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/submit-form`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(formData),
+      mode: "cors",
+    });
 
     const data = await response.json();
+
+    // Check both response.ok and data.success
+    if (!response.ok) {
+      throw new Error(data.message || "Network response was not ok");
+    }
+
     return {
-      success: response.ok,
+      success: data.success,
+      message: data.message,
       data,
       status: response.status,
     };
@@ -25,6 +30,7 @@ export const submitForm = async (formData) => {
     console.error("Error submitting form:", error);
     return {
       success: false,
+      message: error.message || "Error uploading files. Please try again.",
       error: error.message,
     };
   }

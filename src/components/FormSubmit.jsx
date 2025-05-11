@@ -112,9 +112,7 @@ const FormSubmit = ({ serviceName = "Document" }) => {
           setFormData({ name: "", mobile: "" });
         }, 3000);
       } else {
-        alert(
-          response.data?.message || "Error submitting form. Please try again."
-        );
+        alert(response.message || "Error submitting form. Please try again.");
       }
     } catch (error) {
       console.error("Submission error:", error);

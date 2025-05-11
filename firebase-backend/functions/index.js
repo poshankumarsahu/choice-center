@@ -34,18 +34,37 @@ app.post("/submit-form", async (req, res) => {
   try {
     const { name, mobile, serviceName, mainFileUrls, otherFileUrls } = req.body;
 
-    // Create document in Firestore
-    const docRef = await admin
-      .firestore()
-      .collection("submissions")
-      .add({
-        name,
-        mobile,
-        serviceName,
-        mainFileUrls: JSON.parse(mainFileUrls || "[]"),
-        otherFileUrls: JSON.parse(otherFileUrls || "[]"),
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    // Validate required fields
+    if (!name || !mobile || !serviceName) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
       });
+    }
+
+    // Parse file URLs with error handling
+    let parsedMainUrls = [];
+    let parsedOtherUrls = [];
+    try {
+      parsedMainUrls = JSON.parse(mainFileUrls || "[]");
+      parsedOtherUrls = JSON.parse(otherFileUrls || "[]");
+    } catch (e) {
+      console.error("Error parsing URLs:", e);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file URL format",
+      });
+    }
+
+    // Create document in Firestore
+    const docRef = await admin.firestore().collection("submissions").add({
+      name,
+      mobile,
+      serviceName,
+      mainFileUrls: parsedMainUrls,
+      otherFileUrls: parsedOtherUrls,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     res.status(200).json({
       success: true,
@@ -56,7 +75,7 @@ app.post("/submit-form", async (req, res) => {
     console.error("Error submitting form:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Internal server error during form submission",
     });
   }
 });
