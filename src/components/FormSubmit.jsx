@@ -108,10 +108,15 @@ const FormSubmit = ({ serviceName = "Document" }) => {
           setOtherFiles([]);
           setFormData({ name: "", mobile: "" });
         }, 3000);
+      } else {
+        // Show error from API if available
+        alert(
+          response.data?.message || "Error submitting form. Please try again."
+        );
       }
     } catch (error) {
       console.error("Submission error:", error);
-      alert("Error submitting form. Please try again.");
+      alert("Error uploading files. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

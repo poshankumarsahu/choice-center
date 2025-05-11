@@ -12,18 +12,17 @@ export const submitForm = async (formData) => {
 
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || `HTTP error! status: ${response.status}`);
-    }
-
-    // Ensure we have a valid response
-    if (!data || (!data.success && !data.id)) {
-      throw new Error("Invalid response from server");
-    }
-
-    return data;
+    // Return data even if response is not ok, let component handle the error
+    return {
+      success: response.ok,
+      data,
+      status: response.status,
+    };
   } catch (error) {
     console.error("Error submitting form:", error);
-    throw new Error(`Form submission failed: ${error.message}`);
+    return {
+      success: false,
+      error: error.message,
+    };
   }
 };
