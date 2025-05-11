@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FaFileUpload,
   FaTrash,
@@ -11,7 +11,7 @@ import {
 import { submitForm } from "../services/api";
 import { storage, db } from "../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, addDoc, collection } from "firebase/firestore";
 
 const FormSubmit = ({ serviceName = "Document" }) => {
   const [mainFiles, setMainFiles] = useState([]);
@@ -22,6 +22,21 @@ const FormSubmit = ({ serviceName = "Document" }) => {
     name: "",
     mobile: "",
   });
+
+  useEffect(() => {
+    const testFirebase = async () => {
+      try {
+        const testDoc = await addDoc(collection(db, "test"), {
+          test: "test",
+        });
+        console.log("Firebase test successful:", testDoc.id);
+      } catch (error) {
+        console.error("Firebase test failed:", error);
+      }
+    };
+
+    testFirebase();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
