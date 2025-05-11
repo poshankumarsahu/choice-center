@@ -75,30 +75,33 @@ const FormSubmit = ({ serviceName = "Document" }) => {
     }
   };
 
+  // In the handleSubmit function, replace the existing formDataToSend code with:
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append("name", formData.name);
-      formDataToSend.append("mobile", formData.mobile);
-      formDataToSend.append("serviceName", serviceName);
-
-      // Upload main files to Firebase
+      // First upload files to Firebase Storage
       const mainFileUrls = await Promise.all(
         mainFiles.map((file) => uploadFileToFirebase(file, "main"))
       );
 
-      // Upload other files to Firebase
       const otherFileUrls = await Promise.all(
         otherFiles.map((file) => uploadFileToFirebase(file, "other"))
       );
 
-      formDataToSend.append("mainFileUrls", JSON.stringify(mainFileUrls));
-      formDataToSend.append("otherFileUrls", JSON.stringify(otherFileUrls));
+      // Prepare data for API
+      const data = {
+        name: formData.name,
+        mobile: formData.mobile,
+        serviceName: serviceName,
+        mainFileUrls: JSON.stringify(mainFileUrls),
+        otherFileUrls: JSON.stringify(otherFileUrls),
+      };
 
-      const response = await submitForm(formDataToSend);
+      // Submit to API
+      const response = await submitForm(data);
 
       if (response.success) {
         setIsSubmitted(true);
@@ -109,7 +112,6 @@ const FormSubmit = ({ serviceName = "Document" }) => {
           setFormData({ name: "", mobile: "" });
         }, 3000);
       } else {
-        // Show error from API if available
         alert(
           response.data?.message || "Error submitting form. Please try again."
         );

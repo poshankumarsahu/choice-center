@@ -3,16 +3,19 @@ const API_BASE_URL =
 
 export const submitForm = async (formData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/submit-form`, {
-      method: "POST",
-      body: formData,
-      mode: "cors",
-      credentials: "include",
-    });
+    const response = await fetch(
+      "https://us-central1-bk-studio-2f263.cloudfunctions.net/api/submit-form",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+        mode: "cors",
+      }
+    );
 
     const data = await response.json();
-
-    // Return data even if response is not ok, let component handle the error
     return {
       success: response.ok,
       data,
