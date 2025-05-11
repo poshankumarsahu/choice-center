@@ -59,6 +59,8 @@ const Footer = () => {
             BK Studio
           </a>
           . All Rights Reserved.
+          <br></br>
+          Developed by Poshan Sahu
         </span>
       </div>
     </footer>

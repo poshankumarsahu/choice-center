@@ -15,14 +15,13 @@ export const submitForm = async (formData) => {
 
     const data = await response.json();
 
-    // Check both response.ok and data.success
     if (!response.ok) {
-      throw new Error(data.message || "Network response was not ok");
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
     }
 
     return {
-      success: data.success,
-      message: data.message,
+      success: true,
+      message: data.message || "Form submitted successfully",
       data,
       status: response.status,
     };
@@ -30,7 +29,7 @@ export const submitForm = async (formData) => {
     console.error("Error submitting form:", error);
     return {
       success: false,
-      message: error.message || "Error uploading files. Please try again.",
+      message: error.message || "Error submitting form. Please try again.",
       error: error.message,
     };
   }
