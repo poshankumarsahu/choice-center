@@ -17,14 +17,10 @@ jobs:
           cache: "npm"
 
       - name: Install Dependencies
-        run: |
-          cd bk-studio
-          npm ci
+        run: npm ci
 
       - name: Build
-        run: |
-          cd bk-studio
-          npm run build
+        run: npm run build
 
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -32,5 +28,4 @@ jobs:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
           channelId: live
-          projectId: "bk-studio" # Your Firebase project ID
-          entryPoint: "./bk-studio" # Specifying the project directory
+          projectId: "choice-center"
