@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 
@@ -15,11 +15,13 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Initialize services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// Enable offline persistence
-enableIndexedDbPersistence(db).catch((err) => {
-  console.error("Persistence error:", err);
-});
+// Remove persistence for now to troubleshoot
+// enableIndexedDbPersistence(db).catch((err) => {
+//   console.error("Persistence error:", err);
+// });
