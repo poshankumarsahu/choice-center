@@ -88,17 +88,16 @@ const FormSubmit = ({ serviceName = "Document" }) => {
         throw new Error("Please enter both name and mobile number");
       }
 
-      // Upload main files
+      // Upload files first
       const mainFileUrls = await Promise.all(
         mainFiles.map((file) => uploadFileToFirebase(file, "main"))
       );
 
-      // Upload other files
       const otherFileUrls = await Promise.all(
         otherFiles.map((file) => uploadFileToFirebase(file, "other"))
       );
 
-      // Filter out null values and prepare data
+      // Prepare data for Firestore
       const data = {
         name: formData.name,
         mobile: formData.mobile,
@@ -115,7 +114,6 @@ const FormSubmit = ({ serviceName = "Document" }) => {
 
       if (response.success) {
         setIsSubmitted(true);
-        // Reset form
         setMainFiles([]);
         setOtherFiles([]);
         setFormData({ name: "", mobile: "" });
@@ -124,7 +122,7 @@ const FormSubmit = ({ serviceName = "Document" }) => {
           setIsSubmitted(false);
         }, 3000);
       } else {
-        throw new Error(response.error || "Submission failed");
+        throw new Error(response.message || "Submission failed");
       }
     } catch (error) {
       console.error("Submission error:", error);
