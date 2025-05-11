@@ -2,7 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /submissions/{submissionId} {
-      allow read, write: if true; // For testing only
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasAll(['name', 'mobile', 'serviceName', 'mainFiles', 'otherFiles', 'createdAt', 'status', 'updatedAt'])
+                   && request.resource.data.name is string
+                   && request.resource.data.mobile is string
+                   && request.resource.data.mobile.matches('^[0-9]{10}$');
+    }
+    match /test/{docId} {
+      allow read, write: if true;
     }
   }
 }
