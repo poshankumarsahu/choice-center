@@ -2,13 +2,18 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches:
-      - main
+      - master # or master, depending on your default branch
 
 jobs:
   build_and_deploy:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18"
 
       - name: Install Dependencies
         run: npm install
@@ -16,9 +21,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
-          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_BK_STUDIO_2F263 }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
           channelId: live
-          projectId: bk-studio-2f263
+          projectId: your-firebase-project-id # Replace with your project ID
