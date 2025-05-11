@@ -9,6 +9,10 @@ const Slider = () => {
       url: "/images/img1.jpg",
       alt: "First slide",
     },
+    {
+      url: "/images/img2.jpg",
+      alt: "Second slide",
+    },
   ];
 
   useEffect(() => {

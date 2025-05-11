@@ -88,45 +88,30 @@ const FormSubmit = ({ serviceName = "Document" }) => {
       // Upload main files to Firebase
       const mainFileUrls = await Promise.all(
         mainFiles.map((file) => uploadFileToFirebase(file, "main"))
-      ).catch((error) => {
-        console.error("Main files upload error:", error);
-        throw new Error("Failed to upload main files");
-      });
+      );
 
       // Upload other files to Firebase
       const otherFileUrls = await Promise.all(
         otherFiles.map((file) => uploadFileToFirebase(file, "other"))
-      ).catch((error) => {
-        console.error("Other files upload error:", error);
-        throw new Error("Failed to upload other files");
-      });
+      );
 
       formDataToSend.append("mainFileUrls", JSON.stringify(mainFileUrls));
       formDataToSend.append("otherFileUrls", JSON.stringify(otherFileUrls));
 
       const response = await submitForm(formDataToSend);
 
-      // Check if the response exists and has the required properties
-      if (response && (response.success || response.id)) {
+      if (response.success) {
         setIsSubmitted(true);
-        // Reset form after successful submission
         setTimeout(() => {
           setIsSubmitted(false);
           setMainFiles([]);
           setOtherFiles([]);
           setFormData({ name: "", mobile: "" });
         }, 3000);
-      } else {
-        throw new Error("Form submission response was invalid");
       }
     } catch (error) {
       console.error("Submission error:", error);
-      alert(
-        `Error: ${
-          error.message ||
-          "फॉर्म सबमिट करने में समस्या आई है। कृपया पुनः प्रयास करें।"
-        }`
-      );
+      alert("Error submitting form. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

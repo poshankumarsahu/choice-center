@@ -5,11 +5,11 @@ export const submitForm = async (formData) => {
       {
         method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Accept: "application/json",
-          // Remove Content-Type header as it's automatically set with FormData
         },
-        credentials: "include", // Include credentials
-        body: formData,
+        body: JSON.stringify(Object.fromEntries(formData)),
+        mode: "cors",
       }
     );
 
