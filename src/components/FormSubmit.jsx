@@ -12,6 +12,7 @@ import { submitForm } from "../services/api";
 import { storage, db } from "../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, setDoc, addDoc, collection } from "firebase/firestore";
+import { testFirebaseConnection } from "../services/firebaseTest";
 
 const FormSubmit = ({ serviceName = "Document" }) => {
   const [mainFiles, setMainFiles] = useState([]);
@@ -27,35 +28,14 @@ const FormSubmit = ({ serviceName = "Document" }) => {
     const testFirebase = async () => {
       try {
         console.log("Testing Firebase connection...");
-        // Add simple error handling and retry logic
-        const testCollection = collection(db, "test");
-        const testDoc = await addDoc(testCollection, {
-          test: "connection_test",
-          timestamp: new Date().toISOString(),
-          clientInfo: navigator.userAgent,
-        }).catch((error) => {
-          console.warn("First attempt failed:", error);
-          // Retry once after a short delay
-          return new Promise((resolve) => {
-            setTimeout(async () => {
-              const retry = await addDoc(testCollection, {
-                test: "connection_test_retry",
-                timestamp: new Date().toISOString(),
-                clientInfo: navigator.userAgent,
-              });
-              resolve(retry);
-            }, 1000);
-          });
-        });
-
-        console.log("Firebase test successful. Document ID:", testDoc.id);
+        const success = await testFirebaseConnection();
+        if (success) {
+          console.log("Firebase test successful.");
+        } else {
+          console.error("Firebase test failed.");
+        }
       } catch (error) {
         console.error("Firebase test failed:", error);
-        // Log additional details to help with debugging
-        console.error("Firebase config:", {
-          projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-          authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-        });
       }
     };
 
