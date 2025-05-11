@@ -1,35 +1,24 @@
-const functions = require("firebase-functions/v2");
+const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const express = require("express");
 const cors = require("cors");
-const multer = require("multer");
 
 // Initialize Firebase Admin
 admin.initializeApp();
 
-const db = admin.firestore();
-const storage = admin.storage().bucket();
 const app = express();
-
-// Configure multer for memory storage
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB file size limit
-  },
-});
 
 // Update CORS configuration
 app.use(
   cors({
-    origin: true, // Allow all origins
+    origin: true,
     methods: ["POST", "GET", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
 
-// Update form submission endpoint
+// Update form submission endpoint with v2 functions
 app.post("/submit-form", async (req, res) => {
   try {
     const { name, mobile, serviceName, mainFileUrls, otherFileUrls } = req.body;
@@ -80,4 +69,11 @@ app.post("/submit-form", async (req, res) => {
   }
 });
 
-exports.api = functions.https.onRequest(app);
+// Export the API as a v2 function with configuration
+exports.api = onRequest(
+  {
+    cors: true,
+    maxInstances: 10,
+  },
+  app
+);
