@@ -1,8 +1,25 @@
+import { db } from "../config/firebase";
+import { collection, addDoc } from "firebase/firestore";
+
 const API_BASE_URL =
   "https://us-central1-bk-studio-2f263.cloudfunctions.net/api";
 
 export const submitForm = async (formData) => {
   try {
+    // First submit to Firestore directly
+    const submissionsRef = collection(db, "submissions");
+    const firestoreData = {
+      name: formData.name,
+      mobile: formData.mobile,
+      serviceName: formData.serviceName,
+      mainFileUrls: JSON.parse(formData.mainFileUrls || "[]"),
+      otherFileUrls: JSON.parse(formData.otherFileUrls || "[]"),
+      timestamp: new Date(),
+    };
+
+    const docRef = await addDoc(submissionsRef, firestoreData);
+
+    // Also submit to Cloud Function as backup
     const response = await fetch(`${API_BASE_URL}/submit-form`, {
       method: "POST",
       headers: {
@@ -21,8 +38,11 @@ export const submitForm = async (formData) => {
 
     return {
       success: true,
-      message: data.message || "Form submitted successfully",
-      data,
+      message: "Form submitted successfully",
+      data: {
+        ...data,
+        firestoreId: docRef.id,
+      },
       status: response.status,
     };
   } catch (error) {

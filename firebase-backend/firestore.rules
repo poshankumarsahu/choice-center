@@ -2,12 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /submissions/{submissionId} {
-      allow read: if true;
-      allow create: if request.resource.data.name is string
-                   && request.resource.data.mobile is string
-                   && request.resource.data.mobile.size() == 10;
-      allow update: if false;
-      allow delete: if false;
+      allow read, write: if true;  // For development only
+      // For production, use more restrictive rules:
+      // allow read: if true;
+      // allow create: if request.resource.data.name is string 
+      //              && request.resource.data.mobile is string;
+      // allow update, delete: if false;
     }
   }
 }
