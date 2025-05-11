@@ -26,25 +26,15 @@ const FormSubmit = ({ serviceName = "Document" }) => {
   useEffect(() => {
     const testFirebase = async () => {
       try {
-        // Add error handling and logging
         console.log("Testing Firebase connection...");
-
         const testCollection = collection(db, "test");
-        const testData = {
+        const testDoc = await addDoc(testCollection, {
           test: "test",
           timestamp: new Date().toISOString(),
-        };
-
-        const testDoc = await addDoc(testCollection, testData);
+        });
         console.log("Firebase test successful. Document ID:", testDoc.id);
       } catch (error) {
-        console.error("Firebase test failed:", error.message);
-        // Check specific error types
-        if (error.code === "permission-denied") {
-          console.error("Permission denied. Check Firestore rules.");
-        } else if (error.code === "unavailable") {
-          console.error("Firebase service unavailable. Check your connection.");
-        }
+        console.error("Firebase test failed:", error);
       }
     };
 
