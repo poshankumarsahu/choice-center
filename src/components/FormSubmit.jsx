@@ -62,16 +62,20 @@ const FormSubmit = ({ serviceName = "Document" }) => {
 
   const uploadFileToFirebase = async (file, fileType) => {
     try {
+      if (!file) return null;
+
       const timestamp = Date.now();
       const storageRef = ref(
         storage,
         `submissions/${formData.mobile}/${fileType}/${timestamp}_${file.name}`
       );
+
       const uploadResult = await uploadBytes(storageRef, file);
-      return await getDownloadURL(uploadResult.ref);
+      const downloadUrl = await getDownloadURL(uploadResult.ref);
+      return downloadUrl;
     } catch (error) {
       console.error("Upload error:", error);
-      throw error;
+      throw new Error(`Failed to upload ${file.name}`);
     }
   };
 
@@ -80,54 +84,51 @@ const FormSubmit = ({ serviceName = "Document" }) => {
     setIsSubmitting(true);
 
     try {
-      // Validate form data
       if (!formData.name || !formData.mobile) {
-        alert("Please enter both name and mobile number");
-        return;
+        throw new Error("Please enter both name and mobile number");
       }
 
-      // First upload files to Firebase Storage
+      // Upload main files
       const mainFileUrls = await Promise.all(
         mainFiles.map((file) => uploadFileToFirebase(file, "main"))
-      ).catch((error) => {
-        console.error("Error uploading main files:", error);
-        throw new Error("Failed to upload main files");
-      });
+      );
 
+      // Upload other files
       const otherFileUrls = await Promise.all(
         otherFiles.map((file) => uploadFileToFirebase(file, "other"))
-      ).catch((error) => {
-        console.error("Error uploading other files:", error);
-        throw new Error("Failed to upload other files");
-      });
+      );
 
-      // Prepare data for API
+      // Filter out null values and prepare data
       const data = {
         name: formData.name,
         mobile: formData.mobile,
         serviceName: serviceName,
-        mainFileUrls: JSON.stringify(mainFileUrls || []),
-        otherFileUrls: JSON.stringify(otherFileUrls || []),
+        mainFileUrls: JSON.stringify(
+          mainFileUrls.filter((url) => url !== null)
+        ),
+        otherFileUrls: JSON.stringify(
+          otherFileUrls.filter((url) => url !== null)
+        ),
       };
 
-      // Submit to API
       const response = await submitForm(data);
 
       if (response.success) {
         setIsSubmitted(true);
-        // Reset form after successful submission
+        // Reset form
+        setMainFiles([]);
+        setOtherFiles([]);
+        setFormData({ name: "", mobile: "" });
+
         setTimeout(() => {
           setIsSubmitted(false);
-          setMainFiles([]);
-          setOtherFiles([]);
-          setFormData({ name: "", mobile: "" });
         }, 3000);
       } else {
-        throw new Error(response.message || "Form submission failed");
+        throw new Error(response.error || "Submission failed");
       }
     } catch (error) {
       console.error("Submission error:", error);
-      alert(error.message || "Error uploading files. Please try again.");
+      alert(error.message || "Error submitting form. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

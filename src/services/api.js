@@ -1,25 +1,40 @@
 export const submitForm = async (formData) => {
   try {
+    // Ensure formData is properly structured
+    const payload = {
+      name: formData.name || "",
+      mobile: formData.mobile || "",
+      serviceName: formData.serviceName || "",
+      mainFileUrls: formData.mainFileUrls || "[]",
+      otherFileUrls: formData.otherFileUrls || "[]",
+    };
+
     const response = await fetch(
-      "https://us-central1-bk-studio-2f263.cloudfunctions.net/api/submit-form",
+      `${process.env.REACT_APP_API_URL}/submit-form`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
         },
-        body: JSON.stringify(Object.fromEntries(formData)),
-        mode: "cors",
+        body: JSON.stringify(payload),
       }
     );
 
+    const data = await response.json();
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(data.message || "Submission failed");
     }
 
-    return await response.json();
+    return {
+      success: true,
+      data: data,
+    };
   } catch (error) {
-    console.error("Submit form error:", error);
-    throw error;
+    console.error("API Error:", error);
+    return {
+      success: false,
+      error: error.message || "An error occurred during submission",
+    };
   }
 };
