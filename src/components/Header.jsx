@@ -1,14 +1,35 @@
 import React, { useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "../config/firebase";
+import { signOut } from "firebase/auth";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user] = useAuthState(auth);
+  const navigate = useNavigate();
+  const isAdmin = user?.email === import.meta.env.VITE_ADMIN_EMAIL;
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate("/");
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+  };
 
   const navLinks = [
     { to: "/services", text: "सेवाएं" },
     { to: "/submit-form", text: "अपलोड करें" },
     { to: "/contact", text: "संपर्क करें" },
     { to: "/about", text: "हमारे बारे में" },
+    ...(isAdmin
+      ? [
+          { to: "/dashboard", text: "Dashboard" },
+          { onClick: handleLogout, text: "Logout" },
+        ]
+      : []),
   ];
 
   const getLinkStyles = ({ isActive }) => `
@@ -36,11 +57,21 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-4">
-            {navLinks.map((link) => (
-              <NavLink key={link.to} to={link.to} className={getLinkStyles}>
-                {link.text}
-              </NavLink>
-            ))}
+            {navLinks.map((link, index) =>
+              link.onClick ? (
+                <button
+                  key={index}
+                  onClick={link.onClick}
+                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors duration-200"
+                >
+                  {link.text}
+                </button>
+              ) : (
+                <NavLink key={link.to} to={link.to} className={getLinkStyles}>
+                  {link.text}
+                </NavLink>
+              )
+            )}
           </nav>
 
           {/* Mobile Menu Button */}
@@ -90,16 +121,29 @@ const Header = () => {
         } md:hidden bg-white border-t border-gray-200`}
       >
         <div className="px-2 pt-2 pb-3 space-y-1">
-          {navLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={getLinkStyles}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              {link.text}
-            </NavLink>
-          ))}
+          {navLinks.map((link, index) =>
+            link.onClick ? (
+              <button
+                key={index}
+                onClick={() => {
+                  link.onClick();
+                  setIsMenuOpen(false);
+                }}
+                className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors duration-200"
+              >
+                {link.text}
+              </button>
+            ) : (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={getLinkStyles}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {link.text}
+              </NavLink>
+            )
+          )}
         </div>
       </div>
     </header>
