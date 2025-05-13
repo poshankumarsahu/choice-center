@@ -10,19 +10,16 @@ service cloud.firestore {
 
     // Submissions collection rules
     match /submissions/{submissionId} {
-      // Allow anyone to create submissions
-      allow create: if true;
-      
-      // Allow reading submissions
-      allow read: if true;
+      // Allow anyone to create & read submissions
+      allow create, read: if true;
       
       // Only allow admin to update and delete
       allow update, delete: if isAdmin();
     }
 
-    // For all other collections, require admin access
-    match /{document=**} {
-      allow read, write: if isAdmin();
+    // Test collection for connection testing
+    match /test/{document} {
+      allow read, write: if true;
     }
   }
 }

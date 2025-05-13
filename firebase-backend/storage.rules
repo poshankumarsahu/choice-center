@@ -6,15 +6,13 @@ service firebase.storage {
       // Allow public read/write for all users
       allow read, create: if true;
       
-      // Only allow delete/update for admin
-      allow update, delete: if request.auth != null && 
-                          request.auth.token.email == "poshankumarsahu01@gmail.com";
+      // Allow delete for admin
+      allow delete: if request.auth != null && 
+                   request.auth.token.email == "poshankumarsahu01@gmail.com";
       
       // Validate file size and type
-      match /{fileId} {
-        allow write: if request.resource.size < 5 * 1024 * 1024 && // 5MB max
-                    request.resource.contentType.matches('application/pdf|image/jpeg|image/png');
-      }
+      allow write: if request.resource.size < 5 * 1024 * 1024 && // 5MB max
+                  request.resource.contentType.matches('application/pdf|image/jpeg|image/png');
     }
   }
 }

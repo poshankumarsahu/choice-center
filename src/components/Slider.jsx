@@ -5,7 +5,7 @@ const Slider = () => {
     <div className="relative w-full max-w-[1440px] mx-auto my-4">
       <div className="aspect-[16/9] sm:aspect-[16/8] md:aspect-[16/7] lg:aspect-[16/6] bg-gray-50">
         <img
-          src="/images/img1.png"
+          src="/images/img1.png" // This path should match your public folder structure
           alt="Banner"
           width={1920}
           height={1080}

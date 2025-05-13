@@ -1,14 +1,23 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import path from "path";
 
 export default defineConfig({
   plugins: [react()],
-  // Add public directory configuration
   publicDir: "public",
   build: {
     outDir: "dist",
     assetsDir: "assets",
-    // Ensure assets are copied
     copyPublicDir: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+      },
+    },
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
   },
 });
