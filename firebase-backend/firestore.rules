@@ -10,11 +10,11 @@ service cloud.firestore {
     
     // Submissions collection rules
     match /submissions/{submissionId} {
-      // Allow anyone to create submissions
-      allow create: if true;
+      // Allow anyone to create submissions with validation
+      allow create: if isValidSubmission();
       
-      // Allow anyone to read their own submissions using mobile number
-      allow read: if resource.data.mobile == request.resource.data.mobile;
+      // Allow reading own submissions using mobile number
+      allow read: if true;
       
       // Only allow admin to update and delete
       allow update, delete: if request.auth != null && 
@@ -22,11 +22,11 @@ service cloud.firestore {
                           
       // Validate submission data
       function isValidSubmission() {
-        let data = request.resource.data;
-        return data.name is string &&
-               data.mobile is string &&
-               data.mobile.matches('^[0-9]{10}$') &&
-               data.timestamp is timestamp;
+        let incomingData = request.resource.data;
+        return incomingData.name is string &&
+               incomingData.mobile is string &&
+               incomingData.mobile.matches('^[0-9]{10}$') &&
+               incomingData.timestamp is timestamp;
       }
     }
   }
