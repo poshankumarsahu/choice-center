@@ -13,6 +13,8 @@ import { storage, db } from "../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, setDoc, addDoc, collection } from "firebase/firestore";
 import { testFirebaseConnection } from "../services/firebaseTest";
+import { compressImage } from "../utils/imageCompression";
+import UploadProgress from "./UploadProgress";
 
 const FormSubmit = ({ serviceName = "Document" }) => {
   const [mainFiles, setMainFiles] = useState([]);
@@ -23,6 +25,7 @@ const FormSubmit = ({ serviceName = "Document" }) => {
     name: "",
     mobile: "",
   });
+  const [uploadProgress, setUploadProgress] = useState({});
 
   useEffect(() => {
     const testFirebase = async () => {
@@ -54,21 +57,39 @@ const FormSubmit = ({ serviceName = "Document" }) => {
     }
   };
 
-  const handleMainFileChange = (e) => {
+  const handleMainFileChange = async (e) => {
     if (e.target.files) {
-      setMainFiles((prevFiles) => [
-        ...prevFiles,
-        ...Array.from(e.target.files),
-      ]);
+      const files = Array.from(e.target.files);
+      const compressedFiles = await Promise.all(
+        files.map(async (file) => {
+          try {
+            const compressed = await compressImage(file);
+            return compressed;
+          } catch (error) {
+            console.error(`Error compressing ${file.name}:`, error);
+            return file;
+          }
+        })
+      );
+      setMainFiles((prev) => [...prev, ...compressedFiles]);
     }
   };
 
-  const handleOtherFilesChange = (e) => {
+  const handleOtherFilesChange = async (e) => {
     if (e.target.files) {
-      setOtherFiles((prevFiles) => [
-        ...prevFiles,
-        ...Array.from(e.target.files),
-      ]);
+      const files = Array.from(e.target.files);
+      const compressedFiles = await Promise.all(
+        files.map(async (file) => {
+          try {
+            const compressed = await compressImage(file);
+            return compressed;
+          } catch (error) {
+            console.error(`Error compressing ${file.name}:`, error);
+            return file;
+          }
+        })
+      );
+      setOtherFiles((prev) => [...prev, ...compressedFiles]);
     }
   };
 
@@ -89,7 +110,6 @@ const FormSubmit = ({ serviceName = "Document" }) => {
         throw new Error(`File ${file.name} is too large. Maximum size is 5MB`);
       }
 
-      // Validate file type
       const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
       if (!allowedTypes.includes(file.type)) {
         throw new Error(
@@ -99,32 +119,60 @@ const FormSubmit = ({ serviceName = "Document" }) => {
 
       const timestamp = Date.now();
       const fileName = `${timestamp}_${file.name}`;
-      // Use mobile number as user ID for organization
       const storageRef = ref(
         storage,
         `submissions/${formData.mobile}/${fileType}/${fileName}`
       );
 
-      try {
-        const uploadResult = await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(uploadResult.ref);
+      // Update progress state before upload starts
+      setUploadProgress((prev) => ({
+        ...prev,
+        [file.name]: 0,
+      }));
 
-        return {
-          url: downloadUrl,
-          fileName: file.name,
-          fileType: file.type,
-          uploadedAt: timestamp,
-        };
-      } catch (uploadError) {
-        console.error("Upload error:", uploadError);
-        throw new Error(
-          `Failed to upload ${file.name}: ${uploadError.message}`
-        );
-      }
+      // Upload file
+      await uploadBytes(storageRef, file);
+
+      // Update progress to 100% when upload completes
+      setUploadProgress((prev) => ({
+        ...prev,
+        [file.name]: 100,
+      }));
+
+      // Get download URL
+      const url = await getDownloadURL(storageRef);
+
+      return {
+        url,
+        fileName: file.name,
+        fileType: file.type,
+        uploadedAt: timestamp,
+      };
     } catch (error) {
-      console.error("File validation error:", error);
+      console.error("File upload error:", error);
+      // Remove progress entry for failed upload
+      setUploadProgress((prev) => {
+        const newProgress = { ...prev };
+        delete newProgress[file.name];
+        return newProgress;
+      });
       throw error;
     }
+  };
+
+  const processFilesInChunks = async (files, fileType) => {
+    const CHUNK_SIZE = 3; // Upload 3 files concurrently
+    const results = [];
+
+    for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+      const chunk = files.slice(i, i + CHUNK_SIZE);
+      const chunkResults = await Promise.all(
+        chunk.map((file) => uploadFileToFirebase(file, fileType))
+      );
+      results.push(...chunkResults.filter(Boolean));
+    }
+
+    return results;
   };
 
   const handleSubmit = async (e) => {
@@ -140,16 +188,12 @@ const FormSubmit = ({ serviceName = "Document" }) => {
         throw new Error("Please upload at least one file");
       }
 
-      // Upload files
-      const mainFileUrls = await Promise.all(
-        mainFiles.map((file) => uploadFileToFirebase(file, "main"))
-      );
+      // Process main and other files in parallel
+      const [mainFileUrls, otherFileUrls] = await Promise.all([
+        processFilesInChunks(mainFiles, "main"),
+        processFilesInChunks(otherFiles, "other"),
+      ]);
 
-      const otherFileUrls = await Promise.all(
-        otherFiles.map((file) => uploadFileToFirebase(file, "other"))
-      );
-
-      // Create Firestore document
       const timestamp = Date.now();
       const submissionData = {
         name: formData.name,
@@ -162,14 +206,15 @@ const FormSubmit = ({ serviceName = "Document" }) => {
         updatedAt: timestamp,
       };
 
-      // Save to Firestore using addDoc instead of setDoc
+      // Save to Firestore
       await addDoc(collection(db, "submissions"), submissionData);
 
-      // Show success message
+      // Show success message and reset all states
       setIsSubmitted(true);
       setMainFiles([]);
       setOtherFiles([]);
       setFormData({ name: "", mobile: "" });
+      setUploadProgress({}); // Clear upload progress
 
       setTimeout(() => {
         setIsSubmitted(false);
@@ -383,6 +428,13 @@ const FormSubmit = ({ serviceName = "Document" }) => {
             </p>
           </div>
         </div>
+      )}
+
+      {Object.keys(uploadProgress).length > 0 && (
+        <UploadProgress
+          uploadProgress={uploadProgress}
+          totalFiles={mainFiles.length + otherFiles.length}
+        />
       )}
 
       <div className="bg-gray-50 px-6 py-4 text-center border-t">
