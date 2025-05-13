@@ -2,16 +2,20 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Admin rules - full access to all documents
     match /{document=**} {
-      allow read: if request.auth != null && 
-                  request.auth.token.email == "poshankumarsahu01@gmail.com";
-      allow write: if request.auth != null && 
-                  request.auth.token.email == "poshankumarsahu01@gmail.com";
-      
-      match /submissions/{submissionId} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null;
-      }
+      allow read, write: if request.auth != null && 
+                        request.auth.token.email == "poshankumarsahu01@gmail.com";
+    }
+    
+    // Submissions collection rules
+    match /submissions/{submissionId} {
+      // Allow authenticated users to read and create submissions
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      // Only allow updates and deletes by admin
+      allow update, delete: if request.auth != null && 
+                          request.auth.token.email == "poshankumarsahu01@gmail.com";
     }
   }
 }
