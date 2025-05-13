@@ -9,7 +9,7 @@ service firebase.storage {
       // Only allow delete/update for admin
       allow update, delete: if request.auth != null && 
                           request.auth.token.email == "poshankumarsahu01@gmail.com";
-                          
+      
       // Validate file size and type
       match /{fileId} {
         allow write: if request.resource.size < 5 * 1024 * 1024 && // 5MB max

@@ -140,7 +140,7 @@ const FormSubmit = ({ serviceName = "Document" }) => {
         throw new Error("Please upload at least one file");
       }
 
-      // Upload files first
+      // Upload files
       const mainFileUrls = await Promise.all(
         mainFiles.map((file) => uploadFileToFirebase(file, "main"))
       );
@@ -151,8 +151,6 @@ const FormSubmit = ({ serviceName = "Document" }) => {
 
       // Create Firestore document
       const timestamp = Date.now();
-      const submissionId = `${formData.mobile}_${timestamp}`;
-
       const submissionData = {
         name: formData.name,
         mobile: formData.mobile,
@@ -164,8 +162,8 @@ const FormSubmit = ({ serviceName = "Document" }) => {
         updatedAt: timestamp,
       };
 
-      // Save to Firestore
-      await setDoc(doc(db, "submissions", submissionId), submissionData);
+      // Save to Firestore using addDoc instead of setDoc
+      await addDoc(collection(db, "submissions"), submissionData);
 
       // Show success message
       setIsSubmitted(true);
