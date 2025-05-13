@@ -5,184 +5,151 @@ import {
   getDocs,
   query,
   orderBy,
+  where,
   Timestamp,
 } from "firebase/firestore";
-import { ref, listAll, getDownloadURL } from "firebase/storage";
+import { ref, getDownloadURL } from "firebase/storage";
 import { useNavigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { FaUsers, FaFileAlt, FaClock, FaDownload } from "react-icons/fa";
+import {
+  FaUsers,
+  FaFileAlt,
+  FaClock,
+  FaDownload,
+  FaSpinner,
+} from "react-icons/fa";
 
 const Dashboard = () => {
   const [submissions, setSubmissions] = useState([]);
-  const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [downloading, setDownloading] = useState({});
   const navigate = useNavigate();
   const [user, userLoading] = useAuthState(auth);
 
-  // Add this helper function to fetch files from a directory
-  const fetchFilesFromDirectory = async (directory) => {
-    try {
-      const dirRef = ref(storage, directory);
-      const dirList = await listAll(dirRef);
-
-      const filesPromises = dirList.items.map(async (item) => {
-        try {
-          const url = await getDownloadURL(item);
-          return {
-            name: item.name,
-            url,
-            path: item.fullPath,
-            directory: directory.split("/")[1], // Get the user's mobile number
-            timestamp: new Date(),
-          };
-        } catch (err) {
-          console.error(`Error getting download URL for ${item.name}:`, err);
-          return null;
-        }
-      });
-
-      return Promise.all(filesPromises);
-    } catch (err) {
-      console.error(`Error listing files in ${directory}:`, err);
-      return [];
-    }
+  // Calculate total files
+  const getTotalFiles = () => {
+    return submissions.reduce((total, submission) => {
+      const mainFilesCount = submission.mainFiles?.length || 0;
+      const otherFilesCount = submission.otherFiles?.length || 0;
+      return total + mainFilesCount + otherFilesCount;
+    }, 0);
   };
 
   useEffect(() => {
-    if (userLoading) return;
-
-    if (!user || user.email !== import.meta.env.VITE_ADMIN_EMAIL) {
-      navigate("/login");
-      return;
-    }
-
-    const fetchData = async () => {
+    const checkAuthAndFetchData = async () => {
       try {
-        setError(null);
+        if (userLoading) return;
+
+        if (!user) {
+          navigate("/login");
+          return;
+        }
+
+        // Verify admin email
+        if (user.email !== import.meta.env.VITE_ADMIN_EMAIL) {
+          console.log("Not admin, redirecting...");
+          navigate("/login");
+          return;
+        }
+
         setLoading(true);
+        setError(null);
 
-        // Wait for fresh token before proceeding
-        await user.getIdToken(true);
-
-        // Fetch Firestore data first
+        // Fetch submissions from Firestore
         const submissionsQuery = query(
           collection(db, "submissions"),
           orderBy("timestamp", "desc")
         );
 
-        const submissionsSnapshot = await getDocs(submissionsQuery);
-        const submissionsData = submissionsSnapshot.docs.map((doc) => {
-          const data = doc.data();
-          // Convert Firestore Timestamp to JavaScript Date
-          const timestamp =
-            data.timestamp instanceof Timestamp
-              ? data.timestamp.toDate()
-              : new Date(data.timestamp);
+        const snapshot = await getDocs(submissionsQuery);
+        const submissionsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          timestamp:
+            doc.data().timestamp instanceof Timestamp
+              ? doc.data().timestamp.toDate()
+              : new Date(doc.data().timestamp),
+        }));
 
-          return {
-            id: doc.id,
-            ...data,
-            timestamp,
-            // Ensure these fields exist
-            name: data.name || "N/A",
-            mobile: data.mobile || "N/A",
-            serviceName: data.serviceName || "N/A",
-            downloads: data.downloads || 0,
-          };
-        });
-
-        console.log("Submissions data:", submissionsData); // Debug log
         setSubmissions(submissionsData);
-
-        // Fetch Storage files from all subdirectories
-        const rootRef = ref(storage, "submissions");
-        const rootList = await listAll(rootRef);
-
-        // Fetch files from each subdirectory
-        const allFilesPromises = rootList.prefixes.map((prefix) =>
-          fetchFilesFromDirectory(prefix.fullPath)
-        );
-
-        const allFilesArrays = await Promise.all(allFilesPromises);
-        const allFiles = allFilesArrays.flat().filter(Boolean);
-
-        console.log("All files:", allFiles);
-        setFiles(allFiles);
-      } catch (error) {
-        console.error("Error:", error);
-        setError(error.message);
+      } catch (err) {
+        console.error("Error in dashboard:", err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [navigate, user, userLoading]);
+    checkAuthAndFetchData();
+  }, [user, userLoading, navigate]);
 
-  // Render submissions table
-  const renderSubmissionsTable = () => {
-    if (submissions.length === 0) {
-      return (
-        <tr>
-          <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
-            No submissions found
-          </td>
-        </tr>
-      );
+  const handleDownload = async (submission, fileType, fileData) => {
+    const downloadId = `${submission.id}-${fileType}-${fileData.fileName}`;
+
+    try {
+      setDownloading((prev) => ({ ...prev, [downloadId]: true }));
+
+      // Construct storage path
+      const storagePath = `submissions/${submission.mobile}/${fileType}/${fileData.fileName}`;
+      const storageRef = ref(storage, storagePath);
+
+      // Get download URL
+      const url = await getDownloadURL(storageRef);
+
+      // Create temporary anchor element and trigger download
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileData.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Error downloading file:", err);
+      alert(`Failed to download file: ${err.message}`);
+    } finally {
+      setDownloading((prev) => ({ ...prev, [downloadId]: false }));
     }
-
-    return submissions.map((submission) => (
-      <tr key={submission.id} className="hover:bg-gray-50">
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {submission.name}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {submission.mobile}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {submission.serviceName}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {submission.timestamp?.toLocaleDateString() || "N/A"}
-        </td>
-      </tr>
-    ));
   };
 
-  // Update the renderFilesGrid function to show directory information
-  const renderFilesGrid = () => {
-    if (files.length === 0) {
-      return (
-        <div className="col-span-full text-center text-gray-500 py-4">
-          No files uploaded yet
-        </div>
-      );
-    }
+  const renderFilesList = (submission, fileType) => {
+    const files =
+      fileType === "main" ? submission.mainFiles : submission.otherFiles;
 
-    return files.map((file) => (
-      <a
-        key={file.path}
-        href={file.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block p-4 bg-white rounded-lg border border-gray-200 hover:shadow-lg transition-shadow"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <FaFileAlt className="w-6 h-6 text-blue-500" />
-            <span className="ml-2 text-sm text-gray-600 truncate">
-              {file.name}
-            </span>
-          </div>
-          <span className="text-xs text-gray-400">{file.directory}</span>
+    if (!files || files.length === 0) return null;
+
+    return (
+      <div className="mt-2">
+        <h4 className="text-sm font-medium text-gray-700 mb-1">
+          {fileType === "main" ? "Main Files" : "Other Files"}:
+        </h4>
+        <div className="space-y-1">
+          {files.map((file, index) => {
+            const downloadId = `${submission.id}-${fileType}-${file.fileName}`;
+
+            return (
+              <button
+                key={index}
+                onClick={() => handleDownload(submission, fileType, file)}
+                disabled={downloading[downloadId]}
+                className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+              >
+                <FaFileAlt className="flex-shrink-0" />
+                <span className="truncate">{file.fileName}</span>
+                {downloading[downloadId] ? (
+                  <FaSpinner className="animate-spin" />
+                ) : (
+                  <FaDownload className="flex-shrink-0" />
+                )}
+              </button>
+            );
+          })}
         </div>
-      </a>
-    ));
+      </div>
+    );
   };
 
-  // Show loading state
-  if (loading || userLoading) {
+  if (userLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -190,7 +157,6 @@ const Dashboard = () => {
     );
   }
 
-  // Show error state
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -232,7 +198,7 @@ const Dashboard = () => {
             <FaFileAlt className="text-2xl text-green-600 mr-3" />
             <h3 className="text-xl font-semibold text-gray-800">Total Files</h3>
           </div>
-          <p className="text-3xl font-bold text-green-600">{files.length}</p>
+          <p className="text-3xl font-bold text-green-600">{getTotalFiles()}</p>
         </div>
 
         <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
@@ -240,7 +206,9 @@ const Dashboard = () => {
             <FaClock className="text-2xl text-purple-600 mr-3" />
             <h3 className="text-xl font-semibold text-gray-800">Last Update</h3>
           </div>
-          <p className="text-gray-600">{new Date().toLocaleDateString()}</p>
+          <p className="text-gray-600">
+            {submissions[0]?.timestamp.toLocaleDateString() || "No submissions"}
+          </p>
         </div>
 
         <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
@@ -254,9 +222,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Recent Submissions */}
       <div className="p-6">
-        <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
               <FaUsers className="text-2xl text-blue-600 mr-3" />
@@ -268,51 +235,45 @@ const Dashboard = () => {
               Total: {submissions.length}
             </span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Mobile
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Service
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Date
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {renderSubmissionsTable()}
-              </tbody>
-            </table>
+
+          <div className="space-y-4">
+            {submissions.map((submission) => (
+              <div
+                key={submission.id}
+                className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-medium text-gray-900">
+                      {submission.name}
+                    </h3>
+                    <p className="text-sm text-gray-600">{submission.mobile}</p>
+                    <p className="text-sm text-gray-500">
+                      {submission.serviceName}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {submission.timestamp.toLocaleString()}
+                    </p>
+                  </div>
+                  <span
+                    className={`px-2 py-1 text-xs rounded-full ${
+                      submission.status === "completed"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {submission.status || "pending"}
+                  </span>
+                </div>
+
+                {renderFilesList(submission, "main")}
+                {renderFilesList(submission, "other")}
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Uploaded Files */}
-      <div className="p-6">
-        <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <FaFileAlt className="text-2xl text-green-600 mr-3" />
-              <h3 className="text-xl font-semibold text-gray-800">
-                Uploaded Files
-              </h3>
-            </div>
-            <span className="text-sm text-gray-500">Total: {files.length}</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {renderFilesGrid()}
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
       <div className="bg-gray-50 px-6 py-4 text-center border-t">
         <p className="text-gray-600">
           Admin Dashboard - Manage All Your Services
