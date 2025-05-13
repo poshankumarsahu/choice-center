@@ -99,23 +99,31 @@ const FormSubmit = ({ serviceName = "Document" }) => {
 
       const timestamp = Date.now();
       const fileName = `${timestamp}_${file.name}`;
+      // Use mobile number as user ID for organization
       const storageRef = ref(
         storage,
         `submissions/${formData.mobile}/${fileType}/${fileName}`
       );
 
-      const uploadResult = await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(uploadResult.ref);
+      try {
+        const uploadResult = await uploadBytes(storageRef, file);
+        const downloadUrl = await getDownloadURL(uploadResult.ref);
 
-      return {
-        url: downloadUrl,
-        fileName: file.name,
-        fileType: file.type,
-        uploadedAt: timestamp,
-      };
+        return {
+          url: downloadUrl,
+          fileName: file.name,
+          fileType: file.type,
+          uploadedAt: timestamp,
+        };
+      } catch (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw new Error(
+          `Failed to upload ${file.name}: ${uploadError.message}`
+        );
+      }
     } catch (error) {
-      console.error("Upload error:", error);
-      throw new Error(`Failed to upload ${file.name}: ${error.message}`);
+      console.error("File validation error:", error);
+      throw error;
     }
   };
 
