@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { auth, db } from "../config/firebase";
-import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import {
@@ -19,6 +26,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState({});
+  const [deleting, setDeleting] = useState({});
   const navigate = useNavigate();
   const [user, userLoading] = useAuthState(auth);
 
@@ -64,6 +72,26 @@ const Dashboard = () => {
 
     fetchSubmissions();
   }, [user, userLoading, navigate]);
+
+  const handleDelete = async (submissionId) => {
+    if (!window.confirm("Are you sure you want to delete this submission?")) {
+      return;
+    }
+
+    try {
+      setDeleting((prev) => ({ ...prev, [submissionId]: true }));
+      const submissionRef = doc(db, "submissions", submissionId);
+      await deleteDoc(submissionRef);
+
+      // Remove from local state
+      setSubmissions((prev) => prev.filter((sub) => sub.id !== submissionId));
+    } catch (error) {
+      console.error("Error deleting submission:", error);
+      alert("Failed to delete submission");
+    } finally {
+      setDeleting((prev) => ({ ...prev, [submissionId]: false }));
+    }
+  };
 
   const renderFilesList = (files) => {
     if (!files || files.length === 0) return null;
@@ -120,7 +148,9 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid md:grid-cols-4 gap-6 p-6">
+      <div className="grid md:grid-cols-3 gap-6 p-6">
+        {" "}
+        {/* Changed from grid-cols-4 */}
         <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center mb-4">
             <FaUsers className="text-2xl text-blue-600 mr-3" />
@@ -130,7 +160,6 @@ const Dashboard = () => {
             {new Set(submissions.map((s) => s.mobile)).size}
           </p>
         </div>
-
         <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center mb-4">
             <FaFileAlt className="text-2xl text-green-600 mr-3" />
@@ -146,7 +175,6 @@ const Dashboard = () => {
             )}
           </p>
         </div>
-
         <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center mb-4">
             <FaClock className="text-2xl text-purple-600 mr-3" />
@@ -156,16 +184,6 @@ const Dashboard = () => {
           </div>
           <p className="text-gray-600">
             {submissions[0]?.timestamp.toLocaleDateString() || "No submissions"}
-          </p>
-        </div>
-
-        <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center mb-4">
-            <FaFileImage className="text-2xl text-rose-600 mr-3" />
-            <h3 className="text-xl font-semibold text-gray-800">Pending</h3>
-          </div>
-          <p className="text-3xl font-bold text-rose-600">
-            {submissions.filter((s) => s.status === "pending").length}
           </p>
         </div>
       </div>
@@ -209,15 +227,35 @@ const Dashboard = () => {
                       {new Date(submission.createdAt).toLocaleString()}
                     </p>
                   </div>
-                  <span
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      submission.status === "completed"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
+                  <button
+                    onClick={() => handleDelete(submission.id)}
+                    disabled={deleting[submission.id]}
+                    className={`px-3 py-1 text-xs rounded-full flex items-center gap-1
+                      ${
+                        deleting[submission.id]
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-red-100 text-red-800 hover:bg-red-200"
+                      }`}
                   >
-                    {submission.status || "pending"}
-                  </span>
+                    {deleting[submission.id] ? (
+                      <FaSpinner className="animate-spin" />
+                    ) : (
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    )}
+                    {deleting[submission.id] ? "Deleting..." : "Delete"}
+                  </button>
                 </div>
 
                 {submission.mainFiles?.length > 0 && (
