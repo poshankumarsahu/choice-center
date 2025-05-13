@@ -1,14 +1,12 @@
 import { useState, useEffect } from "react";
-import { auth, db, storage } from "../config/firebase";
+import { auth, db } from "../config/firebase";
 import {
   collection,
   getDocs,
   query,
   orderBy,
-  where,
   Timestamp,
 } from "firebase/firestore";
-import { ref, getDownloadURL } from "firebase/storage";
 import { useNavigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import {
@@ -37,7 +35,7 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    const checkAuthAndFetchData = async () => {
+    const fetchData = async () => {
       try {
         if (userLoading) return;
 
@@ -46,9 +44,7 @@ const Dashboard = () => {
           return;
         }
 
-        // Verify admin email
         if (user.email !== import.meta.env.VITE_ADMIN_EMAIL) {
-          console.log("Not admin, redirecting...");
           navigate("/login");
           return;
         }
@@ -56,7 +52,6 @@ const Dashboard = () => {
         setLoading(true);
         setError(null);
 
-        // Fetch submissions from Firestore
         const submissionsQuery = query(
           collection(db, "submissions"),
           orderBy("timestamp", "desc")
@@ -74,43 +69,15 @@ const Dashboard = () => {
 
         setSubmissions(submissionsData);
       } catch (err) {
-        console.error("Error in dashboard:", err);
+        console.error("Error:", err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    checkAuthAndFetchData();
+    fetchData();
   }, [user, userLoading, navigate]);
-
-  const handleDownload = async (submission, fileType, fileData) => {
-    const downloadId = `${submission.id}-${fileType}-${fileData.fileName}`;
-
-    try {
-      setDownloading((prev) => ({ ...prev, [downloadId]: true }));
-
-      // Construct storage path
-      const storagePath = `submissions/${submission.mobile}/${fileType}/${fileData.fileName}`;
-      const storageRef = ref(storage, storagePath);
-
-      // Get download URL
-      const url = await getDownloadURL(storageRef);
-
-      // Create temporary anchor element and trigger download
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = fileData.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error("Error downloading file:", err);
-      alert(`Failed to download file: ${err.message}`);
-    } finally {
-      setDownloading((prev) => ({ ...prev, [downloadId]: false }));
-    }
-  };
 
   const renderFilesList = (submission, fileType) => {
     const files =
@@ -124,26 +91,18 @@ const Dashboard = () => {
           {fileType === "main" ? "Main Files" : "Other Files"}:
         </h4>
         <div className="space-y-1">
-          {files.map((file, index) => {
-            const downloadId = `${submission.id}-${fileType}-${file.fileName}`;
-
-            return (
-              <button
-                key={index}
-                onClick={() => handleDownload(submission, fileType, file)}
-                disabled={downloading[downloadId]}
-                className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
-              >
-                <FaFileAlt className="flex-shrink-0" />
-                <span className="truncate">{file.fileName}</span>
-                {downloading[downloadId] ? (
-                  <FaSpinner className="animate-spin" />
-                ) : (
-                  <FaDownload className="flex-shrink-0" />
-                )}
-              </button>
-            );
-          })}
+          {files.map((file, index) => (
+            <a
+              key={index}
+              href={file.fileUrl}
+              download={file.fileName}
+              className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800"
+            >
+              <FaFileAlt className="flex-shrink-0" />
+              <span className="truncate">{file.fileName}</span>
+              <FaDownload className="flex-shrink-0" />
+            </a>
+          ))}
         </div>
       </div>
     );
