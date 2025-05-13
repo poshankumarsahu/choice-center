@@ -19,6 +19,26 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # Add cache clearing step
+      - name: Clear Cache
+        run: |
+          npm cache clean --force
+          rm -rf .firebase
+          rm -rf build
+          rm -rf dist
+
+      # Add step to ensure public directory exists
+      - name: Create public directory
+        run: mkdir -p public
+
+      # Add step to copy static assets
+      - name: Copy Static Assets
+        run: |
+          if exist "public" (
+            xcopy /E /I /Y "public\*" "dist\"
+          )
+        shell: cmd
+
       - name: Build
         run: npm run build
 

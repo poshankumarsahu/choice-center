@@ -1,7 +1,14 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-})
+  // Add public directory configuration
+  publicDir: "public",
+  build: {
+    outDir: "dist",
+    assetsDir: "assets",
+    // Ensure assets are copied
+    copyPublicDir: true,
+  },
+});
