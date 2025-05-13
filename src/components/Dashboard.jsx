@@ -1,12 +1,6 @@
 import { useState, useEffect } from "react";
 import { auth, db } from "../config/firebase";
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  Timestamp,
-} from "firebase/firestore";
+import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import {
@@ -15,6 +9,9 @@ import {
   FaClock,
   FaDownload,
   FaSpinner,
+  FaPhone,
+  FaUserAlt,
+  FaFileImage,
 } from "react-icons/fa";
 
 const Dashboard = () => {
@@ -35,75 +32,57 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchSubmissions = async () => {
       try {
         if (userLoading) return;
-
         if (!user) {
           navigate("/login");
           return;
         }
 
-        if (user.email !== import.meta.env.VITE_ADMIN_EMAIL) {
-          navigate("/login");
-          return;
-        }
-
         setLoading(true);
-        setError(null);
+        const submissionsRef = collection(db, "submissions");
+        const q = query(submissionsRef, orderBy("createdAt", "desc"));
+        const querySnapshot = await getDocs(q);
 
-        const submissionsQuery = query(
-          collection(db, "submissions"),
-          orderBy("timestamp", "desc")
-        );
-
-        const snapshot = await getDocs(submissionsQuery);
-        const submissionsData = snapshot.docs.map((doc) => ({
+        const submissionsData = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
-          timestamp:
-            doc.data().timestamp instanceof Timestamp
-              ? doc.data().timestamp.toDate()
-              : new Date(doc.data().timestamp),
+          timestamp: new Date(doc.data().createdAt),
+          mainFiles: doc.data().mainFiles || [],
+          otherFiles: doc.data().otherFiles || [],
         }));
 
         setSubmissions(submissionsData);
-      } catch (err) {
-        console.error("Error:", err);
-        setError(err.message);
+      } catch (error) {
+        console.error("Error fetching submissions:", error);
+        setError(error.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchSubmissions();
   }, [user, userLoading, navigate]);
 
-  const renderFilesList = (submission, fileType) => {
-    const files =
-      fileType === "main" ? submission.mainFiles : submission.otherFiles;
-
+  const renderFilesList = (files) => {
     if (!files || files.length === 0) return null;
 
     return (
-      <div className="mt-2">
-        <h4 className="text-sm font-medium text-gray-700 mb-1">
-          {fileType === "main" ? "Main Files" : "Other Files"}:
-        </h4>
-        <div className="space-y-1">
-          {files.map((file, index) => (
-            <a
-              key={index}
-              href={file.fileUrl}
-              download={file.fileName}
-              className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800"
-            >
-              <FaFileAlt className="flex-shrink-0" />
-              <span className="truncate">{file.fileName}</span>
-              <FaDownload className="flex-shrink-0" />
-            </a>
-          ))}
-        </div>
+      <div className="flex flex-wrap gap-2 mt-2">
+        {files.map((file, index) => (
+          <a
+            key={index}
+            href={file.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-sm text-blue-600 hover:bg-blue-100"
+          >
+            <FaFileImage className="w-4 h-4" />
+            <span className="truncate max-w-[150px]">{file.fileName}</span>
+            <FaDownload className="w-3 h-3" />
+          </a>
+        ))}
       </div>
     );
   };
@@ -145,10 +124,10 @@ const Dashboard = () => {
         <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center mb-4">
             <FaUsers className="text-2xl text-blue-600 mr-3" />
-            <h3 className="text-xl font-semibold text-gray-800">Submissions</h3>
+            <h3 className="text-xl font-semibold text-gray-800">Total Users</h3>
           </div>
           <p className="text-3xl font-bold text-blue-600">
-            {submissions.length}
+            {new Set(submissions.map((s) => s.mobile)).size}
           </p>
         </div>
 
@@ -157,13 +136,23 @@ const Dashboard = () => {
             <FaFileAlt className="text-2xl text-green-600 mr-3" />
             <h3 className="text-xl font-semibold text-gray-800">Total Files</h3>
           </div>
-          <p className="text-3xl font-bold text-green-600">{getTotalFiles()}</p>
+          <p className="text-3xl font-bold text-green-600">
+            {submissions.reduce(
+              (acc, sub) =>
+                acc +
+                (sub.mainFiles?.length || 0) +
+                (sub.otherFiles?.length || 0),
+              0
+            )}
+          </p>
         </div>
 
         <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center mb-4">
             <FaClock className="text-2xl text-purple-600 mr-3" />
-            <h3 className="text-xl font-semibold text-gray-800">Last Update</h3>
+            <h3 className="text-xl font-semibold text-gray-800">
+              Latest Update
+            </h3>
           </div>
           <p className="text-gray-600">
             {submissions[0]?.timestamp.toLocaleDateString() || "No submissions"}
@@ -172,11 +161,11 @@ const Dashboard = () => {
 
         <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center mb-4">
-            <FaDownload className="text-2xl text-rose-600 mr-3" />
-            <h3 className="text-xl font-semibold text-gray-800">Downloads</h3>
+            <FaFileImage className="text-2xl text-rose-600 mr-3" />
+            <h3 className="text-xl font-semibold text-gray-800">Pending</h3>
           </div>
           <p className="text-3xl font-bold text-rose-600">
-            {submissions.reduce((acc, sub) => acc + (sub.downloads || 0), 0)}
+            {submissions.filter((s) => s.status === "pending").length}
           </p>
         </div>
       </div>
@@ -202,20 +191,26 @@ const Dashboard = () => {
                 className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium text-gray-900">
-                      {submission.name}
-                    </h3>
-                    <p className="text-sm text-gray-600">{submission.mobile}</p>
-                    <p className="text-sm text-gray-500">
-                      {submission.serviceName}
-                    </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <FaUserAlt className="text-gray-400" />
+                      <h3 className="font-medium text-gray-900">
+                        {submission.name}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <FaPhone className="text-gray-400" />
+                      <p className="text-sm text-gray-600">
+                        {submission.mobile}
+                      </p>
+                    </div>
                     <p className="text-xs text-gray-400">
-                      {submission.timestamp.toLocaleString()}
+                      Submitted:{" "}
+                      {new Date(submission.createdAt).toLocaleString()}
                     </p>
                   </div>
                   <span
-                    className={`px-2 py-1 text-xs rounded-full ${
+                    className={`px-3 py-1 text-xs rounded-full ${
                       submission.status === "completed"
                         ? "bg-green-100 text-green-800"
                         : "bg-yellow-100 text-yellow-800"
@@ -225,8 +220,23 @@ const Dashboard = () => {
                   </span>
                 </div>
 
-                {renderFilesList(submission, "main")}
-                {renderFilesList(submission, "other")}
+                {submission.mainFiles?.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                      Main Files
+                    </h4>
+                    {renderFilesList(submission.mainFiles)}
+                  </div>
+                )}
+
+                {submission.otherFiles?.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                      Other Files
+                    </h4>
+                    {renderFilesList(submission.otherFiles)}
+                  </div>
+                )}
               </div>
             ))}
           </div>
