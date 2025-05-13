@@ -8,22 +8,8 @@ service cloud.firestore {
              request.auth.token.email == "poshankumarsahu01@gmail.com";
     }
 
-    // Admin rules - full access to all documents
-    match /{document=**} {
-      allow read, write: if isAdmin();
-    }
-    
     // Submissions collection rules
     match /submissions/{submissionId} {
-      // Allow anyone to create submissions with validation
-      allow create: if isValidSubmission();
-      
-      // Allow reading own submissions using mobile number
-      allow read: if true;
-      
-      // Only allow admin to update and delete
-      allow update, delete: if isAdmin();
-                          
       // Validate submission data
       function isValidSubmission() {
         let incomingData = request.resource.data;
@@ -32,6 +18,20 @@ service cloud.firestore {
                incomingData.mobile.matches('^[0-9]{10}$') &&
                incomingData.timestamp is timestamp;
       }
+
+      // Allow anyone to create submissions with basic validation
+      allow create: if true;
+      
+      // Allow public reading of submissions
+      allow read: if true;
+      
+      // Only allow admin to update and delete
+      allow update, delete: if isAdmin();
+    }
+
+    // Test collection for connection testing
+    match /test/{document} {
+      allow read, write: if true;
     }
   }
 }

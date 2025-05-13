@@ -3,10 +3,10 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /submissions/{userId}/{type}/{fileName} {
-      // Allow public read/write for all users
+      // Allow public uploads and reads
       allow read, create: if true;
       
-      // Allow delete for admin
+      // Allow delete for admin only
       allow delete: if request.auth != null && 
                    request.auth.token.email == "poshankumarsahu01@gmail.com";
       

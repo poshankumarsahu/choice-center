@@ -9,9 +9,17 @@ export default defineConfig({
     outDir: "dist",
     assetsDir: "assets",
     copyPublicDir: true,
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, "index.html"),
+      },
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            return "vendor";
+          }
+        },
       },
     },
   },
