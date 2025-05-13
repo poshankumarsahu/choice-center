@@ -142,21 +142,25 @@ const Dashboard = () => {
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-8 text-center">
-        <h2 className="text-3xl font-bold text-white mb-2">Admin Dashboard</h2>
-        <p className="text-blue-100">Manage your submissions and files</p>
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-4 sm:px-6 py-6 sm:py-8 text-center">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+          Admin Dashboard
+        </h2>
+        <p className="text-blue-100 text-sm sm:text-base">
+          Manage your submissions and files
+        </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid md:grid-cols-3 gap-6 p-6">
-        {" "}
-        {/* Changed from grid-cols-4 */}
-        <div className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center mb-4">
-            <FaUsers className="text-2xl text-blue-600 mr-3" />
-            <h3 className="text-xl font-semibold text-gray-800">Total Users</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 p-4 sm:p-6">
+        <div className="bg-gray-50 p-4 sm:p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center mb-3 sm:mb-4">
+            <FaUsers className="text-xl sm:text-2xl text-blue-600 mr-2 sm:mr-3" />
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
+              Total Users
+            </h3>
           </div>
-          <p className="text-3xl font-bold text-blue-600">
+          <p className="text-2xl sm:text-3xl font-bold text-blue-600">
             {new Set(submissions.map((s) => s.mobile)).size}
           </p>
         </div>
@@ -188,12 +192,12 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="p-6">
-        <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+      <div className="p-4 sm:p-6">
+        <div className="bg-gray-50 p-4 sm:p-6 rounded-lg shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
             <div className="flex items-center">
-              <FaUsers className="text-2xl text-blue-600 mr-3" />
-              <h3 className="text-xl font-semibold text-gray-800">
+              <FaUsers className="text-xl sm:text-2xl text-blue-600 mr-2 sm:mr-3" />
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
                 Recent Submissions
               </h3>
             </div>
@@ -206,19 +210,19 @@ const Dashboard = () => {
             {submissions.map((submission) => (
               <div
                 key={submission.id}
-                className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                className="bg-white p-3 sm:p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-0">
+                  <div className="space-y-2 w-full sm:w-auto">
                     <div className="flex items-center gap-2">
                       <FaUserAlt className="text-gray-400" />
-                      <h3 className="font-medium text-gray-900">
+                      <h3 className="font-medium text-gray-900 break-all">
                         {submission.name}
                       </h3>
                     </div>
                     <div className="flex items-center gap-2">
                       <FaPhone className="text-gray-400" />
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 break-all">
                         {submission.mobile}
                       </p>
                     </div>
@@ -230,7 +234,7 @@ const Dashboard = () => {
                   <button
                     onClick={() => handleDelete(submission.id)}
                     disabled={deleting[submission.id]}
-                    className={`px-3 py-1 text-xs rounded-full flex items-center gap-1
+                    className={`w-full sm:w-auto px-3 py-1 text-xs rounded-full flex items-center justify-center gap-1
                       ${
                         deleting[submission.id]
                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
@@ -259,20 +263,24 @@ const Dashboard = () => {
                 </div>
 
                 {submission.mainFiles?.length > 0 && (
-                  <div className="mt-4">
+                  <div className="mt-3 sm:mt-4">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">
                       Main Files
                     </h4>
-                    {renderFilesList(submission.mainFiles)}
+                    <div className="flex flex-wrap gap-2">
+                      {renderFilesList(submission.mainFiles)}
+                    </div>
                   </div>
                 )}
 
                 {submission.otherFiles?.length > 0 && (
-                  <div className="mt-4">
+                  <div className="mt-3 sm:mt-4">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">
                       Other Files
                     </h4>
-                    {renderFilesList(submission.otherFiles)}
+                    <div className="flex flex-wrap gap-2">
+                      {renderFilesList(submission.otherFiles)}
+                    </div>
                   </div>
                 )}
               </div>
@@ -281,8 +289,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="bg-gray-50 px-6 py-4 text-center border-t">
-        <p className="text-gray-600">
+      <div className="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 text-center border-t">
+        <p className="text-gray-600 text-sm sm:text-base">
           Admin Dashboard - Manage All Your Services
         </p>
       </div>

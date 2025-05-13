@@ -16,6 +16,7 @@ import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "./config/firebase";
+import Tabs from "./components/Tabs";
 
 const ProtectedRoute = ({ children }) => {
   const [user, loading] = useAuthState(auth);
@@ -45,6 +46,7 @@ function App() {
       <div className="min-h-screen bg-gray-50">
         <Header />
         <main className="pt-10">
+          <Tabs />
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<Main />} />
